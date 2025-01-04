@@ -22,6 +22,7 @@ import {
 } from "./styles/styles";
 import { useState } from "react";
 import CloseIcon from "@mui/icons-material/Close";
+import { config } from "./utils/config";
 
 const selector = (state) => ({
   nodes: state.nodes,
@@ -34,23 +35,31 @@ export const SubmitButton = () => {
   const [openModal, setOpenModal] = useState(false);
 
   const handleSubmit = async () => {
-    let config = {
+    let requestData = {
       method: "post",
       maxBodyLength: Infinity,
-      url: "http://localhost:8000/pipelines/parse",
+      url: `${config.api_base_url}/pipelines/parse`,
       headers: {
         "Content-Type": "application/json",
       },
       data: { nodes, edges },
+      timeout: 30000,
     };
 
     const result = await axios
-      .request(config)
+      .request(requestData)
       .then((response) => {
         return response.data;
       })
       .catch((error) => {
-        console.log(error);
+        if (error.code === "ECONNABORTED") {
+          setApiResult({ error: "Request timeout. Please try again." });
+        } else {
+          setApiResult({
+            error: error?.message ? error?.message : "Error Occurred",
+          });
+        }
+        return null;
       });
 
     if (result) {
@@ -84,13 +93,17 @@ export const SubmitButton = () => {
           </Tooltip>
           {apiResult ? (
             <Alert severity={apiResult?.is_dag ? "success" : "error"}>
-              <Typography>
-                Number of Nodes : {apiResult?.num_nodes}
-                <br />
-                Number of Edges : {apiResult?.num_edges}
-                <br />
-                DAG Status : {apiResult?.is_dag ? "True" : "False"}
-              </Typography>
+              {apiResult?.error ? (
+                <Typography>{apiResult?.error}</Typography>
+              ) : (
+                <Typography>
+                  Number of Nodes : {apiResult?.num_nodes}
+                  <br />
+                  Number of Edges : {apiResult?.num_edges}
+                  <br />
+                  DAG Status : {apiResult?.is_dag ? "True" : "False"}
+                </Typography>
+              )}
             </Alert>
           ) : (
             <Box sx={loaderContainerStyle}>
